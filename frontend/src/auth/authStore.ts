@@ -1,11 +1,11 @@
 import type { User } from '../types';
 
 interface AuthState {
-  token: string | null;
   user: User | null;
+    hydrated: boolean;
 }
 
-let state: AuthState = { token: null, user: null };
+let state: AuthState = { user: null, hydrated: false };
 const listeners = new Set<() => void>();
 
 function setState(next: AuthState) {
@@ -21,10 +21,13 @@ export const authStore = {
   getSnapshot(): AuthState {
     return state;
   },
-  setAuth(token: string, user: User) {
-    setState({ token, user });
+  setUser(user: User) {
+    setState({ user, hydrated: true });
   },
   clear() {
-    setState({ token: null, user: null });
+    setState({ user: null, hydrated: true });
+  },
+  markHydrated() {
+    setState({ ...state, hydrated: true });
   },
 };

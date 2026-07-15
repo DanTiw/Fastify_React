@@ -27,8 +27,10 @@ services:
       DATABASE_URL: postgresql://app:app@db:5432/usermngmt?schema=public
       JWT_ACCESS_SECRET: local-demo-access-secret-0123456789
       JWT_REFRESH_SECRET: local-demo-refresh-secret-0123456789
+      BETTER_AUTH_SECRET: xbdqN3kaNuD2cCG0GoLti6wRNmAIlWPU
       ACCESS_TOKEN_TTL: 900
       REFRESH_TOKEN_TTL: 604800
+      BETTER_AUTH_URL: http://localhost:3000
       CORS_ORIGIN: http://localhost:8080
       COOKIE_SECURE: 'false'
     ports:

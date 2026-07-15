@@ -1,20 +1,23 @@
-import { api } from '../lib/api';
+import { authClient } from '../lib/auth-client';
+import { mapSessionUser } from '../lib/mapUser';
 import { authStore } from './authStore';
-import type { User } from '../types';
-
-interface AuthResult {
-  accessToken: string;
-  user: User;
-}
 
 export async function login(email: string, password: string): Promise<void> {
-  const { accessToken, user } = await api.post<AuthResult>('/auth/login', { email, password });
-  authStore.setAuth(accessToken, user);
+  const { error } = await authClient.signIn.email({
+    email,
+    password,
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Invalid email or password');
+  }
+
+  await loadSessionIntoStore();
 }
 
 export async function logout(): Promise<void> {
   try {
-    await api.post('/auth/logout');
+    await authClient.signOut();
   } catch {
   }
   authStore.clear();
@@ -22,9 +25,21 @@ export async function logout(): Promise<void> {
 
 export async function bootstrapAuth(): Promise<void> {
   try {
-    const { accessToken, user } = await api.post<AuthResult>('/auth/refresh');
-    authStore.setAuth(accessToken, user);
+    await loadSessionIntoStore();
   } catch {
     authStore.clear();
+  } finally {
+    authStore.markHydrated();
   }
+}
+
+async function loadSessionIntoStore(): Promise<void> {
+  const { data, error } = await authClient.getSession();
+
+  if (error || !data?.session || !data.user) {
+    authStore.clear();
+    return;
+  }
+
+  authStore.setUser(mapSessionUser(data.user as unknown as Record<string, unknown>));
 }

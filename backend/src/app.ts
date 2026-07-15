@@ -13,6 +13,7 @@ import { env } from './lib/env';
 import { AppError } from './lib/errors';
 import { toValidationErrorResponse } from './lib/validation';
 import { userRoutes } from './routes/users';
+import { withSession } from './plugins/auth-hooks';
 import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from './lib/auth';
 
@@ -21,7 +22,6 @@ export function buildApp() {
     logger: true,
   }).withTypeProvider<ZodTypeProvider>();
 
-  // Validate request body / query / params against route Zod schemas before handlers run
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
@@ -54,14 +54,6 @@ export function buildApp() {
 
   app.get('/health', async () => ({ status: 'ok' }));
 
-  app.register(
-    async (api) => {
-      await api.register(authRoutes, { prefix: '/auth' });
-      await api.register(userRoutes, { prefix: '/users' });
-    },
-    { prefix: '/api' },
-  );
-
   app.route({
     method: ['GET', 'POST'],
     url: '/api/auth/*',
@@ -92,6 +84,14 @@ export function buildApp() {
       }
     },
   });
+
+  app.register(
+    async (api) => {
+      await api.register(withSession);
+      await api.register(userRoutes, { prefix: '/users' });
+    },
+    { prefix: '/api' },
+  );
 
   return app;
 }

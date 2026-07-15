@@ -1,28 +1,41 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { verifyAccessToken, type AccessTokenPayload } from '../lib/jwt';
+import { fromNodeHeaders } from 'better-auth/node';
+import { auth } from '../lib/auth';
 
 declare module 'fastify' {
   interface FastifyRequest {
-    user?: AccessTokenPayload;
+    user?: {
+      id: string;
+      email: string;
+      role?: string;
+      firstName?: string;
+      lastName?: string;
+      isActive?: boolean;
+    };
   }
 }
 
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
-  const header = request.headers.authorization;
-  if (!header?.startsWith('Bearer ')) {
-    return reply.code(401).send({ message: 'Missing or invalid Authorization headerz' });
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(request.headers),
+  });
+
+  if (!session) {
+    return reply.code(401).send({ message: 'Unauthorized' });
   }
-  try {
-    request.user = verifyAccessToken(header.slice('Bearer '.length));
-  } catch {
-    return reply.code(401).send({ message: 'Invalid or expired token' });
-  }
+
+  request.user = {
+    id: session.user.id,
+    email: session.user.email,
+    role: session.user.role as string | undefined,
+    firstName: session.user.firstName as string | undefined,
+    lastName: session.user.lastName as string | undefined,
+    isActive: session.user.isActive as boolean | undefined,
+  };
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   if (request.user?.role !== 'ADMIN') {
-    return reply.code(403).send({ message: 'Admin  access required' });
+    return reply.code(403).send({ message: 'Admin access required' });
   }
 }
-
-

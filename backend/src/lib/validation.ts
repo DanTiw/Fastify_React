@@ -29,10 +29,6 @@ function formatFastifyZodIssue(
   };
 }
 
-/**
- * Normalize Zod / Fastify validation failures into a consistent API response.
- * Call this from the global error handler before any business logic runs.
- */
 export function toValidationErrorResponse(error: unknown): ValidationErrorResponse | null {
   if (error instanceof ZodError) {
     return {

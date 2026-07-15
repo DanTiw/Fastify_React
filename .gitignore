@@ -17,7 +17,7 @@ out/
 *.tsbuildinfo
 
 # Fastify compiled code (if using TypeScript)
-lib/
+
 .tours/
 
 # ==========================================

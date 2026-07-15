@@ -29,7 +29,7 @@ export async function listUsers(query: ListUsersQuery) {
         ],
       }
     : {};
-      // Difference one after the other ? 
+
   const [items, total] = await Promise.all([
     prisma.user.findMany({
       where,
@@ -68,6 +68,7 @@ export async function createUser(input: CreateUserInput): Promise<UserResponse> 
   const userId = result.user.id;
   return getUserById(userId);
 }
+
 export async function updateUser(id: string, input: UpdateUserInput): Promise<UserResponse> {
   await getUserById(id);
   const user = await prisma.user.update({ where: { id }, data: input });

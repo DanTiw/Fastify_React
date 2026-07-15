@@ -1,36 +1,52 @@
 import { z } from 'zod';
+import { emailRule, nameRule, passwordRule, roleRule } from './common';
 
-const passwordRule = z.string().min(8, 'Password must be at least 8 characters').max(128);
+export const createUserSchema = z
+  .object({
+    email: emailRule,
+    password: passwordRule,
+    firstName: nameRule,
+    lastName: nameRule,
+    role: roleRule.default('USER'),
+  })
+  .strict();
 
-const nameRule = z.string().trim().min(1).max(100);
+export const updateUserSchema = z
+  .object({
+    firstName: nameRule.optional(),
+    lastName: nameRule.optional(),
+    role: roleRule.optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided',
+  });
 
-export const createUserSchema = z.object({
-  email: z.string().trim().email().max(255),
-  password: passwordRule,
-  firstName: nameRule,
-  lastName: nameRule,
-  role: z.enum(['ADMIN', 'USER']).default('USER'),
-});
+export const userSelfChangeSchema = z
+  .object({
+    firstName: nameRule.optional(),
+    lastName: nameRule.optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided',
+  });
 
-export const updateUserSchema = z.object({
-  firstName: nameRule.optional(),
-  lastName: nameRule.optional(),
-  role: z.enum(['ADMIN', 'USER']).optional(),
-  isActive: z.boolean().optional(),
-});
-
-export const listUsersQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
-  search: z.string().trim().optional(),
-});
+export const listUsersQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(10),
+    search: z.string().trim().max(200).optional(),
+  })
+  .strict();
 
 export const userResponseSchema = z.object({
   id: z.string().min(1),
   email: z.string().email(),
   firstName: z.string(),
   lastName: z.string(),
-  role: z.enum(['ADMIN', 'USER']),
+  role: roleRule,
   isActive: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -43,13 +59,7 @@ export const paginatedUsersSchema = z.object({
   pageSize: z.number(),
 });
 
-
-export const userSelfChange = z.object({
-  firstName: nameRule.optional(),
-  lastName: nameRule.optional(),
-});
-
-export type UserSelfChange = z.infer<typeof userSelfChange>;
+export type UserSelfChange = z.infer<typeof userSelfChangeSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;

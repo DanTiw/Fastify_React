@@ -1,67 +1,107 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
 import {
   createUserSchema,
   updateUserSchema,
   listUsersQuerySchema,
   userResponseSchema,
   paginatedUsersSchema,
-  userSelfChange,
+  userSelfChangeSchema,
 } from '../schemas/user';
-import { authenticate, requireAdmin } from '../middleware/auth';
+import { idParamSchema, validationErrorResponseSchema, errorMessageSchema } from '../schemas/common';
+import { withAdmin } from '../plugins/auth-hooks';
 import { listUsers, getUserById, createUser, updateUser, updateUserSelf, deleteUser } from '../services/userService';
 
-const idParam = z.object({ id: z.string().min(1) });
+const validationResponses = {
+  400: validationErrorResponseSchema,
+  401: errorMessageSchema,
+  403: errorMessageSchema,
+} as const;
 
 export async function userRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
-// Prehandlers auto attach ? DB and Backedn are joint ?
+
   r.get(
     '/',
     {
-      preHandler: [authenticate],
-      schema: { tags: ['users'], querystring: listUsersQuerySchema, response: { 200: paginatedUsersSchema } },
+      schema: {
+        tags: ['users'],
+        querystring: listUsersQuerySchema,
+        response: { 200: paginatedUsersSchema, ...validationResponses },
+      },
     },
     async (request) => listUsers(request.query),
   );
 
   r.get(
     '/:id',
-    { preHandler: [authenticate], schema: { tags: ['users'], params: idParam, response: { 200: userResponseSchema } } },
-    async (request) => getUserById(request.params.id),
-  );
-
-  r.post(
-    '/',
-    { preHandler: [authenticate, requireAdmin], schema: { tags: ['users'], body: createUserSchema, response: { 201: userResponseSchema } } },
-    async (request, reply) => reply.code(201).send(await createUser(request.body)),
-  );
-
-  r.patch(
-    '/:id',
     {
-      preHandler: [authenticate, requireAdmin],
-      schema: { tags: ['users'], params: idParam, body: updateUserSchema, response: { 200: userResponseSchema } },
+      schema: {
+        tags: ['users'],
+        params: idParamSchema,
+        response: { 200: userResponseSchema, 404: errorMessageSchema, ...validationResponses },
+      },
     },
-    async (request) => updateUser(request.params.id, request.body),
-  );
-
-  r.delete(
-    '/:id',
-    { preHandler: [authenticate, requireAdmin], schema: { tags: ['users'], params: idParam } },
-    async (request, reply) => {
-      await deleteUser(request.params.id, request.user!.id);
-      return reply.code(204).send();
-    },
+    async (request) => getUserById(request.params.id),
   );
 
   r.patch(
     '/self',
     {
-      preHandler: [authenticate],
-      schema: { tags: ['users'], body: userSelfChange, response: { 200: userResponseSchema } },
+      schema: {
+        tags: ['users'],
+        body: userSelfChangeSchema,
+        response: { 200: userResponseSchema, ...validationResponses },
+      },
     },
     async (request) => updateUserSelf(request.user!.id, request.body),
   );
+
+  await r.register(async (adminScope) => {
+    await adminScope.register(withAdmin);
+    const admin = adminScope.withTypeProvider<ZodTypeProvider>();
+
+    admin.post(
+      '/',
+      {
+        schema: {
+          tags: ['users'],
+          body: createUserSchema,
+          response: {
+            201: userResponseSchema,
+            409: errorMessageSchema,
+            ...validationResponses,
+          },
+        },
+      },
+      async (request, reply) => reply.code(201).send(await createUser(request.body)),
+    );
+
+    admin.patch(
+      '/:id',
+      {
+        schema: {
+          tags: ['users'],
+          params: idParamSchema,
+          body: updateUserSchema,
+          response: { 200: userResponseSchema, 404: errorMessageSchema, ...validationResponses },
+        },
+      },
+      async (request) => updateUser(request.params.id, request.body),
+    );
+
+    admin.delete(
+      '/:id',
+      {
+        schema: {
+          tags: ['users'],
+          params: idParamSchema,
+        },
+      },
+      async (request, reply) => {
+        await deleteUser(request.params.id, request.user!.id);
+        return reply.status(204).send();
+      },
+    );
+  });
 }

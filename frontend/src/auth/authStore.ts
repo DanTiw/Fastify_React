@@ -2,7 +2,7 @@ import type { User } from '../types';
 
 interface AuthState {
   user: User | null;
-    hydrated: boolean;
+  hydrated: boolean;
 }
 
 let state: AuthState = { user: null, hydrated: false };

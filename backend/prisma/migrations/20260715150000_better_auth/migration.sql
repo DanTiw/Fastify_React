@@ -1,11 +1,11 @@
 -- DropForeignKey
-ALTER TABLE "refresh_tokens" DROP CONSTRAINT "refresh_tokens_user_id_fkey";
+ALTER TABLE "refresh_tokens" DROP CONSTRAINT IF EXISTS "refresh_tokens_user_id_fkey";
 
 -- DropTable
-DROP TABLE "refresh_tokens";
+DROP TABLE IF EXISTS "refresh_tokens";
 
 -- DropTable
-DROP TABLE "users";
+DROP TABLE IF EXISTS "users";
 
 -- CreateTable
 CREATE TABLE "user" (

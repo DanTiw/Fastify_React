@@ -1,8 +1,8 @@
 import type { User } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { hashPassword } from '../lib/password';
 import { AppError } from '../lib/errors';
 import type { CreateUserInput, UpdateUserInput, ListUsersQuery, UserResponse, UserSelfChange } from '../schemas/user';
+import { auth } from '../lib/auth';
 
 export function toUserResponse(user: User): UserResponse {
   return {
@@ -53,18 +53,21 @@ export async function createUser(input: CreateUserInput): Promise<UserResponse> 
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw new AppError(409, 'A user with this email already exists');
 
-  const user = await prisma.user.create({
-    data: {
+  const result = await auth.api.signUpEmail({
+    body: {
       email: input.email,
-      passwordHash: await hashPassword(input.password),
+      password: input.password,
+      name: `${input.firstName} ${input.lastName}`.trim(),
       firstName: input.firstName,
       lastName: input.lastName,
       role: input.role,
+      isActive: true,
     },
   });
-  return toUserResponse(user);
-}
 
+  const userId = result.user.id;
+  return getUserById(userId);
+}
 export async function updateUser(id: string, input: UpdateUserInput): Promise<UserResponse> {
   await getUserById(id);
   const user = await prisma.user.update({ where: { id }, data: input });

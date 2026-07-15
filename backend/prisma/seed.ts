@@ -1,31 +1,95 @@
-import { PrismaClient } from '@prisma/client';
-import argon2 from 'argon2';
+import { auth } from '../src/lib/auth';
+import { prisma } from '../src/lib/prisma';
 
-const prisma = new PrismaClient();
+type SeedUser = {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: 'ADMIN' | 'USER';
+};
 
-async function main() {
-  const passwordHash = await argon2.hash('Password123!', { type: argon2.argon2id });
+const SEED_USERS: SeedUser[] = [
+  {
+    email: 'admin@example.com',
+    password: 'Password123!',
+    firstName: 'Admin',
+    lastName: 'User',
+    role: 'ADMIN',
+  },
+  {
+    email: 'user1@example.com',
+    password: 'Password123!',
+    firstName: 'Demo',
+    lastName: 'User 1',
+    role: 'USER',
+  },
+  {
+    email: 'user2@example.com',
+    password: 'Password123!',
+    firstName: 'Demo',
+    lastName: 'User 2',
+    role: 'USER',
+  },
+  {
+    email: 'user3@example.com',
+    password: 'Password123!',
+    firstName: 'Demo',
+    lastName: 'User 3',
+    role: 'USER',
+  },
+];
 
-  await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {},
-    create: { email: 'admin@example.com', passwordHash, firstName: 'Admin', lastName: 'User', role: 'ADMIN' },
-  });
-
-  for (let i = 1; i <= 3; i++) {
-    await prisma.user.upsert({
-      where: { email: `user${i}@example.com` },
-      update: {},
-      create: { email: `user${i}@example.com`, passwordHash, firstName: 'Demo', lastName: `User ${i}`, role: 'USER' },
+async function seedUser(user: SeedUser) {
+  const existing = await prisma.user.findUnique({ where: { email: user.email } });
+  if (existing) {
+    await prisma.user.update({
+      where: { email: user.email },
+      data: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isActive: true,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+      },
     });
+    console.log(`  updated (already existed): ${user.email} [${user.role}]`);
+    return;
   }
 
-  console.log('Seed complete. Log in with  admin@example.com / Password123!');
+  await auth.api.signUpEmail({
+    body: {
+      email: user.email,
+      password: user.password,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      isActive: true,
+    },
+  });
+
+  console.log(`  created: ${user.email} [${user.role}]`);
+}
+
+async function main() {
+  console.log('Seeding users via Better Auth…');
+
+  for (const user of SEED_USERS) {
+    await seedUser(user);
+  }
+
+  console.log('');
+  console.log('Seed complete. Log in with:');
+  console.log('  admin@example.com / Password123!  (ADMIN)');
+  console.log('  user1@example.com / Password123!  (USER)');
 }
 
 main()
   .catch((err) => {
-    console.error(err);
+    console.error('Seed failed:', err);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

@@ -26,7 +26,7 @@ export const listUsersQuerySchema = z.object({
 });
 
 export const userResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   email: z.string().email(),
   firstName: z.string(),
   lastName: z.string(),

@@ -12,7 +12,7 @@ import {
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { listUsers, getUserById, createUser, updateUser, updateUserSelf, deleteUser } from '../services/userService';
 
-const idParam = z.object({ id: z.string().uuid() });
+const idParam = z.object({ id: z.string().min(1) });
 
 export async function userRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -51,7 +51,7 @@ export async function userRoutes(app: FastifyInstance) {
     '/:id',
     { preHandler: [authenticate, requireAdmin], schema: { tags: ['users'], params: idParam } },
     async (request, reply) => {
-      await deleteUser(request.params.id, request.user!.sub);
+      await deleteUser(request.params.id, request.user!.id);
       return reply.code(204).send();
     },
   );
@@ -62,6 +62,6 @@ export async function userRoutes(app: FastifyInstance) {
       preHandler: [authenticate],
       schema: { tags: ['users'], body: userSelfChange, response: { 200: userResponseSchema } },
     },
-    async (request) => updateUserSelf(request.user!.sub, request.body),
+    async (request) => updateUserSelf(request.user!.id, request.body),
   );
 }
